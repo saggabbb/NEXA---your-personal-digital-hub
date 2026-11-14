@@ -27,11 +27,11 @@ class UserProfile {
   static String nim = AppInfo.ownerNim;
   static String prodi = AppInfo.ownerProdi;
   static String birthPlace = 'Bandung';
-  static DateTime birthDate = DateTime(2004, 5, 20);
+  static DateTime birthDate = DateTime(2006, 1, 31);
   static String gender = 'Laki-laki';
-  static String address = 'Jl. Telekomunikasi No. 1, Terusan Buahbatu, Bandung';
-  static String email = 'bagas.ravael@student.uinsgd.ac.id';
-  static String phone = '0812-3456-7890';
+  static String address = 'Jln. Laswi, Baleendah, Bandung, Jawa Barat';
+  static String email = 'bagas.adigia@mhs.itenas.ac.id';
+  static String phone = '0858-5207-3211';
   static String hobby = 'Mobile App Development, UI/UX Design, Gaming';
 
   /// File foto profil yang telah diambil dari kamera atau dipilih dari galeri.

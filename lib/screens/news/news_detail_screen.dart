@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/widgets/nexa_card.dart';
 import '../../core/widgets/nexa_background.dart';
 import '../../models/news_model.dart';
+import '../../services/storage_service.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   const NewsDetailScreen({super.key, required this.article});
@@ -25,13 +26,21 @@ class NewsDetailScreen extends StatefulWidget {
 class _NewsDetailScreenState extends State<NewsDetailScreen> {
   bool _isBookmarked = false;
 
-  void _toggleBookmark() {
-    setState(() => _isBookmarked = !_isBookmarked);
+  @override
+  void initState() {
+    super.initState();
+    _isBookmarked = StorageService.getBookmarkedNewsIds().contains(widget.article.id);
+  }
+
+  Future<void> _toggleBookmark() async {
+    final isSaved = await StorageService.toggleNewsBookmark(widget.article.id);
+    if (!mounted) return;
+    setState(() => _isBookmarked = isSaved);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           _isBookmarked
-              ? 'Artikel disimpan ke daftar bacaan simulasi'
+              ? 'Artikel disimpan ke daftar bacaan permanen'
               : 'Artikel dihapus dari daftar bacaan',
           style: const TextStyle(color: AppColors.textPrimary),
         ),

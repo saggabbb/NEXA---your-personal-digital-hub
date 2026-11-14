@@ -14,6 +14,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/widgets/nexa_card.dart';
 import '../../models/contact_model.dart';
 import '../../data/contact_data.dart';
+import '../../services/storage_service.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -26,9 +27,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'Semua';
+  Set<String> _favoriteIds = {};
 
   final List<String> _categories = const [
     'Semua',
+    'Favorit',
     'Dosen',
     'Teman Kuliah',
     'Rekan Proyek',
@@ -36,9 +39,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _favoriteIds = StorageService.getFavoriteContactIds();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleFavorite(String contactId) async {
+    final isFav = await StorageService.toggleContactFavorite(contactId);
+    setState(() {
+      if (isFav) {
+        _favoriteIds.add(contactId);
+      } else {
+        _favoriteIds.remove(contactId);
+      }
+    });
   }
 
   /// Memfilter kontak berdasarkan query pencarian dan kategori yang dipilih
@@ -50,6 +70,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (!matchesSearch) return false;
 
       if (_selectedCategory == 'Semua') return true;
+      if (_selectedCategory == 'Favorit') {
+        return _favoriteIds.contains(contact.id);
+      }
       if (_selectedCategory == 'Dosen') {
         return contact.category.contains('Dosen');
       }
@@ -470,6 +493,23 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 ),
               ],
             ),
+          ),
+
+          // Tombol Favorit
+          IconButton(
+            icon: Icon(
+              _favoriteIds.contains(contact.id)
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              size: 20,
+            ),
+            color: _favoriteIds.contains(contact.id)
+                ? AppColors.neonGreen
+                : AppColors.textTertiary,
+            tooltip: _favoriteIds.contains(contact.id)
+                ? 'Hapus dari Favorit'
+                : 'Tambah ke Favorit',
+            onPressed: () => _toggleFavorite(contact.id),
           ),
 
           // Tombol Panggil Cepat

@@ -18,6 +18,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/widgets/nexa_card.dart';
 import '../../models/news_model.dart';
 import '../../data/news_data.dart';
+import '../../services/storage_service.dart';
 import 'news_detail_screen.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -33,12 +34,15 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
   late final Animation<double> _fadeIn;
 
   NewsCategory _selectedCategory = NewsCategory.semua;
+  bool _filterSavedOnly = false;
   String _searchQuery = '';
+  Set<String> _bookmarkedIds = {};
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    _bookmarkedIds = StorageService.getBookmarkedNewsIds();
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -57,17 +61,22 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
   /// Filter berita berdasarkan pencarian dan kategori terpilih.
   List<NewsArticle> get _filteredArticles {
     return dummyNewsArticles.where((article) {
-      final matchesCategory = _selectedCategory == NewsCategory.semua ||
-          article.category == _selectedCategory;
+      if (_filterSavedOnly) {
+        if (!_bookmarkedIds.contains(article.id)) return false;
+      } else if (_selectedCategory != NewsCategory.semua &&
+          article.category != _selectedCategory) {
+        return false;
+      }
+
       final matchesQuery = _searchQuery.isEmpty ||
           article.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           article.summary.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesQuery;
+      return matchesQuery;
     }).toList();
   }
 
-  void _openDetail(NewsArticle article) {
-    Navigator.push(
+  void _openDetail(NewsArticle article) async {
+    await Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -87,6 +96,12 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
         },
       ),
     );
+
+    if (mounted) {
+      setState(() {
+        _bookmarkedIds = StorageService.getBookmarkedNewsIds();
+      });
+    }
   }
 
   @override
@@ -120,32 +135,35 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
           Expanded(
             child: articles.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      0,
-                      AppSpacing.md,
-                      AppSpacing.xl,
-                    ),
-                    itemCount: articles.length + (_searchQuery.isEmpty && _selectedCategory == NewsCategory.semua ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      // Jika mode default (tidak cari & kategori semua), tampilkan headline card di paling atas
-                      final showHeadline =
-                          _searchQuery.isEmpty && _selectedCategory == NewsCategory.semua;
+                : Builder(
+                    builder: (context) {
+                      final showHeadline = !_filterSavedOnly &&
+                          _searchQuery.isEmpty &&
+                          _selectedCategory == NewsCategory.semua;
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          0,
+                          AppSpacing.md,
+                          AppSpacing.xl,
+                        ),
+                        itemCount: articles.length + (showHeadline ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (showHeadline && index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                              child: _buildHeadlineCard(headlineArticle),
+                            );
+                          }
 
-                      if (showHeadline && index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _buildHeadlineCard(headlineArticle),
-                        );
-                      }
+                          final articleIndex = showHeadline ? index - 1 : index;
+                          final article = articles[articleIndex];
 
-                      final articleIndex = showHeadline ? index - 1 : index;
-                      final article = articles[articleIndex];
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _buildArticleListItem(article),
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: _buildArticleListItem(article),
+                          );
+                        },
                       );
                     },
                   ),
@@ -196,34 +214,88 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
 
   /// Filter kategori horizontal chips
   Widget _buildCategoryChips() {
+    final totalChips = NewsCategory.values.length + 1; // +1 untuk chip Favorit / Tersimpan
+
     return SizedBox(
       height: 38,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: NewsCategory.values.length,
+        itemCount: totalChips,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
         itemBuilder: (context, index) {
-          final cat = NewsCategory.values[index];
-          final isSelected = _selectedCategory == cat;
+          if (index == 0) {
+            // Chip "Tersimpan"
+            final isSelected = _filterSavedOnly;
+            final count = _bookmarkedIds.length;
+
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => setState(() => _filterSavedOnly = !_filterSavedOnly),
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.neonGreen : AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                    border: Border.all(
+                      color: isSelected ? AppColors.neonGreen : AppColors.border,
+                      width: 0.8,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.neonGlowSubtle,
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSelected ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                        size: 14,
+                        color: isSelected ? AppColors.textOnPrimary : AppColors.neonGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Tersimpan ($count)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                          color: isSelected ? AppColors.textOnPrimary : AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final cat = NewsCategory.values[index - 1];
+          final isSelected = !_filterSavedOnly && _selectedCategory == cat;
 
           return Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => setState(() => _selectedCategory = cat),
+              onTap: () => setState(() {
+                _filterSavedOnly = false;
+                _selectedCategory = cat;
+              }),
               borderRadius: BorderRadius.circular(AppRadius.full),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.neonGreen
-                      : AppColors.surface,
+                  color: isSelected ? AppColors.neonGreen : AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.neonGreen
-                        : AppColors.border,
+                    color: isSelected ? AppColors.neonGreen : AppColors.border,
                     width: 0.8,
                   ),
                   boxShadow: isSelected

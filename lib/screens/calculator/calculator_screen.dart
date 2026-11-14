@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_constants.dart';
+import '../../services/storage_service.dart';
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
@@ -142,6 +143,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _display = error;
       } else if (result != null) {
         _display = _formatNumber(result);
+        StorageService.addCalculatorHistory('$_expression $_display');
       }
 
       _firstOperand = result;
@@ -160,6 +162,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       final result = value * value;
       _expression = '(${_formatNumber(value)})² =';
       _display = _formatNumber(result);
+      StorageService.addCalculatorHistory('$_expression $_display');
       _firstOperand = result;
       _operator = null;
       _shouldResetDisplay = true;
@@ -184,6 +187,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       final result = math.sqrt(value);
       _expression = '√(${_formatNumber(value)}) =';
       _display = _formatNumber(result);
+      StorageService.addCalculatorHistory('$_expression $_display');
       _firstOperand = result;
       _operator = null;
       _shouldResetDisplay = true;
@@ -328,24 +332,60 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Ekspresi / riwayat operasi
-          if (_expression.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Text(
-                _expression,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.neonGreen.withValues(alpha: 0.7),
-                  fontSize: 16,
-                  letterSpacing: 0.5,
+          // Baris Atas: Tombol Riwayat & Ekspresi
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InkWell(
+                onTap: _showHistorySheet,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(
+                      color: AppColors.border,
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.history_rounded, size: 14, color: AppColors.neonGreen),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Riwayat',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.neonGreen,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
+
+              // Ekspresi / riwayat operasi
+              if (_expression.isNotEmpty)
+                Expanded(
+                  child: Text(
+                    _expression,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.neonGreen.withValues(alpha: 0.7),
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
 
           // Angka utama / hasil
           FittedBox(
@@ -366,6 +406,102 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showHistorySheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (context) {
+        final history = StorageService.getCalculatorHistory();
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.history_rounded, color: AppColors.neonGreen, size: 20),
+                        const SizedBox(width: 8),
+                        Text('Riwayat Perhitungan', style: AppTextStyles.heading3.copyWith(fontSize: 16)),
+                      ],
+                    ),
+                    if (history.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () async {
+                          await StorageService.clearCalculatorHistory();
+                          if (context.mounted) Navigator.pop(context);
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16),
+                        label: const Text('Hapus', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (history.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Text(
+                      'Belum ada riwayat perhitungan.',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      separatorBuilder: (_, _) => const Divider(color: AppColors.divider, height: 1),
+                      itemBuilder: (context, index) {
+                        final item = history[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          title: Text(
+                            item,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontFamily: 'monospace',
+                              fontSize: 15,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                          onTap: () {
+                            final parts = item.split('=');
+                            if (parts.length > 1) {
+                              setState(() {
+                                _display = parts.last.trim();
+                                _shouldResetDisplay = true;
+                              });
+                            }
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

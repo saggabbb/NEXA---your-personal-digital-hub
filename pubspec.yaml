@@ -37,6 +37,8 @@ dependencies:
 
   # Akses kamera HP untuk foto profil (Fase 4 - Biodata)
   image_picker: ^1.1.2
+  shared_preferences: ^2.5.6
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

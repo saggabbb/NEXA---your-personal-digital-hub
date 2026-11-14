@@ -1,6 +1,6 @@
 /// Halaman Cuaca — Aplikasi NEXA.
 ///
-/// Menampilkan prakiraan cuaca statis untuk kota Surabaya.
+/// Menampilkan prakiraan cuaca statis untuk kota Bandung.
 /// Data tidak berasal dari API, melainkan hard-coded di [weather_data.dart].
 ///
 /// Fitur visual:

@@ -19,6 +19,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/widgets/nexa_card.dart';
 import '../../services/camera_service.dart';
+import '../../services/storage_service.dart';
 import '../../data/user_profile.dart';
 
 class BiodataScreen extends StatefulWidget {
@@ -170,11 +171,10 @@ class _BiodataScreenState extends State<BiodataScreen> {
               if (UserProfile.profilePhoto != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 TextButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(context);
-                    setState(() {
-                      UserProfile.clearPhoto();
-                    });
+                    await StorageService.clearProfilePhoto();
+                    setState(() {});
                   },
                   icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
                   label: const Text(
@@ -241,10 +241,9 @@ class _BiodataScreenState extends State<BiodataScreen> {
   Future<void> _pickFromCamera() async {
     final photo = await CameraService.takePhoto();
     if (photo != null) {
-      setState(() {
-        UserProfile.setPhoto(photo);
-      });
-      _showFeedbackSnackBar('Foto profil berhasil diambil dari kamera!');
+      await StorageService.saveProfilePhoto(photo);
+      setState(() {});
+      _showFeedbackSnackBar('Foto profil berhasil diambil & disimpan permanen!');
     }
   }
 
@@ -252,10 +251,9 @@ class _BiodataScreenState extends State<BiodataScreen> {
   Future<void> _pickFromGallery() async {
     final photo = await CameraService.pickFromGallery();
     if (photo != null) {
-      setState(() {
-        UserProfile.setPhoto(photo);
-      });
-      _showFeedbackSnackBar('Foto profil berhasil dipilih dari galeri!');
+      await StorageService.saveProfilePhoto(photo);
+      setState(() {});
+      _showFeedbackSnackBar('Foto profil berhasil dipilih & disimpan permanen!');
     }
   }
 
@@ -275,7 +273,9 @@ class _BiodataScreenState extends State<BiodataScreen> {
               surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
             ),
-            dialogBackgroundColor: AppColors.background,
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppColors.background,
+            ),
           ),
           child: child!,
         );
@@ -287,25 +287,26 @@ class _BiodataScreenState extends State<BiodataScreen> {
     }
   }
 
-  /// Simpan perubahan form ke UserProfile in-memory
-  void _saveChanges() {
-    setState(() {
-      UserProfile.name = _nameController.text.trim();
-      UserProfile.nim = _nimController.text.trim();
-      UserProfile.prodi = _selectedProdi;
-      UserProfile.birthPlace = _birthPlaceController.text.trim();
-      UserProfile.birthDate = _selectedDate;
-      UserProfile.gender = _selectedGender;
-      UserProfile.address = _addressController.text.trim();
-      UserProfile.email = _emailController.text.trim();
-      UserProfile.phone = _phoneController.text.trim();
-      UserProfile.hobby = _hobbyController.text.trim();
-      UserProfile.notifyUpdate();
+  /// Simpan perubahan form ke StorageService & UserProfile
+  Future<void> _saveChanges() async {
+    await StorageService.saveUserProfile(
+      name: _nameController.text.trim(),
+      nim: _nimController.text.trim(),
+      prodi: _selectedProdi,
+      birthPlace: _birthPlaceController.text.trim(),
+      birthDate: _selectedDate,
+      gender: _selectedGender,
+      address: _addressController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+      hobby: _hobbyController.text.trim(),
+    );
 
+    setState(() {
       _isEditing = false;
     });
 
-    _showFeedbackSnackBar('Biodata berhasil disimpan!');
+    _showFeedbackSnackBar('Biodata berhasil disimpan secara permanen!');
   }
 
   void _showFeedbackSnackBar(String message) {

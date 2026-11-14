@@ -2,7 +2,7 @@
 ///
 /// Semua data di sini bersifat statis (hard-coded),
 /// tidak memerlukan koneksi internet maupun API.
-/// Data mensimulasikan prakiraan cuaca 7 hari untuk Surabaya.
+/// Data mensimulasikan prakiraan cuaca 7 hari untuk Bandung  .
 library;
 
 import '../models/weather_model.dart';
@@ -11,11 +11,11 @@ import '../models/weather_model.dart';
 class WeatherLocation {
   WeatherLocation._();
 
-  static const String city = 'Surabaya';
-  static const String province = 'Jawa Timur';
+  static const String city = 'Bandung';
+  static const String province = 'Jawa Barat';
   static const String country = 'Indonesia';
   static const String timezone = 'WIB (UTC+7)';
-  static const String coordinates = '7.2575° S, 112.7521° E';
+  static const String coordinates = '6.9175° S, 107.6188° E';
 }
 
 /// Data cuaca hari ini (ditampilkan sebagai cuaca utama).
